@@ -44,11 +44,13 @@ public class AverageSystemLoadMetric extends SourcedLoadMetric<MBeanLoadContext>
    public AverageSystemLoadMetric() throws MalformedObjectNameException
    {
       super(new OperatingSystemLoadMetricSource());
+      setCapacity(Runtime.getRuntime().availableProcessors());
    }
    
    public AverageSystemLoadMetric(OperatingSystemLoadMetricSource source)
    {
       super(source);
+      setCapacity(Runtime.getRuntime().availableProcessors());
    }
    
    /**
