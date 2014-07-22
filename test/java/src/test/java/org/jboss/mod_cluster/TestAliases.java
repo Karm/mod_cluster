@@ -26,6 +26,7 @@
  */
 
 package org.jboss.mod_cluster;
+import org.junit.Ignore;
 
 import java.io.IOException;
 

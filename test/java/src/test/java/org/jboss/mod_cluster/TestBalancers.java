@@ -28,7 +28,7 @@
 package org.jboss.mod_cluster;
 
 import junit.framework.TestCase;
-
+import org.junit.Ignore;
 import org.jboss.modcluster.ModClusterService;
 import org.apache.catalina.core.StandardServer;
 
