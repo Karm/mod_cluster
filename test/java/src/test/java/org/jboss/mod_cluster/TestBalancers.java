@@ -40,16 +40,19 @@ public class TestBalancers extends TestCase {
     public void testBalancers2() {
         myBalancers("balancer", "dom1", "balancer", "dom1");
     }
+    @Ignore
     public void testBalancers3() {
         myBalancers("balancer", "dom1", "balancer", "dom2");
     }
     
     /* We need 2 different applications if we have 2 balancers */
+    @Ignore
     public void testBalancers4() {
         myBalancers("balancer1", "dom1", "/app1", "balancer2", "dom2", "/app2", false);
     }
     
     /* Use Aliases and 2 balancers */
+    @Ignore
     public void testBalancers5() {
         myBalancers("balancer", "dom1", null, "balancer", "dom2", null, true);
     }

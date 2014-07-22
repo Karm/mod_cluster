@@ -36,6 +36,7 @@ import org.apache.catalina.core.StandardServer;
 
 public class TestAliases extends TestCase {
 
+    @Ignore
     public void testAliases() {
         String [] Aliases = new String[10];
         Aliases[0] = "alias0";
@@ -56,6 +57,7 @@ public class TestAliases extends TestCase {
 
     }
     
+    @Ignore
     public void testAliases2() {
         String [] Aliases = new String[2];
         Aliases[0] = "alias0";
@@ -68,6 +70,7 @@ public class TestAliases extends TestCase {
 
     }
     
+    @Ignore
     public void testAliases3() {
         String [] Aliases = new String[2];
         Aliases[0] = "alias0";
@@ -124,6 +127,7 @@ public class TestAliases extends TestCase {
         myAliases(Aliases, Aliases2, virtualhosts, webapps);
     }
 
+    @Ignore
     public void testAliases4() {
         String [] Aliases = new String[2];
         Aliases[0] = "alias0";
