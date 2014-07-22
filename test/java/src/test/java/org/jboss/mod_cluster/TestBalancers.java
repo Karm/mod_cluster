@@ -168,9 +168,14 @@ public class TestBalancers extends TestCase {
         	}
 
         	try {
+Thread.sleep(1000);
         		client2.runit(url, 20, true);
+Thread.sleep(1000);
+
         		client.start();
-        		client.join();
+Thread.sleep(1000);
+
+	client.join();
         	} catch (Exception e) {
     			e.printStackTrace();
     			clienterror = true;       		
@@ -183,7 +188,11 @@ public class TestBalancers extends TestCase {
       
          // Wait for it.
         try {
+Thread.sleep(1000);
+
             client.start();
+Thread.sleep(1000);
+
             client.join();
         } catch (Exception ex) {
             ex.printStackTrace();
