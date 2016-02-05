@@ -23,3 +23,9 @@ native/*/configure
 # Native testsuite
 test/java/node*/
 
+.sass-cache/
+Gemfile.lock
+_site/
+_site/
+Gemfile.lock
+.sass-cache/
