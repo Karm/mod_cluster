@@ -39,6 +39,9 @@
 #include "apr_pools.h"
 #include "apr_time.h"
 
+#include "httpd.h"
+#include "http_log.h"
+
 #include "slotmem.h"
 #include "balancer.h"
 
@@ -53,17 +56,25 @@ static mem_t * create_attach_mem_balancer(char *string, int *num, int type, apr_
     if (!ptr) {
         return NULL;
     }
+
     ptr->storage =  storage;
+    if(!ptr->storage) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Balancer ptr->storage failure? ptr->storage: %p", ptr->storage);
+        return NULL;
+    }
+
     storename = apr_pstrcat(p, string, BALANCEREXE, NULL); 
-    if (type)
+    if (type) {
         rv = ptr->storage->ap_slotmem_create(&ptr->slotmem, storename, sizeof(balancerinfo_t), *num, type, p);
-    else {
+    } else {
         apr_size_t size = sizeof(balancerinfo_t);
         rv = ptr->storage->ap_slotmem_attach(&ptr->slotmem, storename, &size, num, p);
     }
+
     if (rv != APR_SUCCESS) {
         return NULL;
     }
+
     ptr->num = *num;
     ptr->p = p;
     return ptr;
@@ -95,6 +106,16 @@ apr_status_t insert_update_balancer(mem_t *s, balancerinfo_t *balancer)
     int ident;
 
     balancer->id = 0;
+
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on insert_update_balancer? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem || !s->p) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on insert_update_balancer? s->storage: %p, s->slotmem: %p, s->p: %p", s->storage, s->slotmem, s->p);
+        return APR_EGENERAL;
+    }
+
     s->storage->ap_slotmem_lock(s->slotmem);
     rv = s->storage->ap_slotmem_do(s->slotmem, insert_update, &balancer, 1, s->p);
     if (balancer->id != 0 && rv == APR_SUCCESS) {
@@ -137,13 +158,23 @@ balancerinfo_t * read_balancer(mem_t *s, balancerinfo_t *balancer)
     apr_status_t rv;
     balancerinfo_t *ou = balancer;
 
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on read_balancer? s: %p", s);
+        return NULL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on read_balancer? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return NULL;
+    }
+
     if (balancer->id)
         rv = s->storage->ap_slotmem_mem(s->slotmem, balancer->id, (void **) &ou);
     else {
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_balancer, &ou, 0, s->p);
     }
-    if (rv == APR_SUCCESS)
+    if (rv == APR_SUCCESS) {
         return ou;
+    }
     return NULL;
 }
 /**
@@ -155,6 +186,18 @@ balancerinfo_t * read_balancer(mem_t *s, balancerinfo_t *balancer)
  */
 apr_status_t get_balancer(mem_t *s, balancerinfo_t **balancer, int ids)
 {
+  if(!s) {
+      ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_balancer? s: %p", s);
+      return APR_EGENERAL;
+  }
+  if(!balancer) {
+      ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_balancer? balancer: %p", balancer);
+      return APR_EGENERAL;
+  }
+  if(!s->storage || !s->slotmem) {
+      ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_balancer? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+      return APR_EGENERAL;
+  }
   return(s->storage->ap_slotmem_mem(s->slotmem, ids, (void **) balancer));
 }
 
@@ -168,13 +211,26 @@ apr_status_t remove_balancer(mem_t *s, balancerinfo_t *balancer)
 {
     apr_status_t rv;
     balancerinfo_t *ou = balancer;
-    if (balancer->id)
+    if(!ou) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on remove_balancer? ou: %p", ou);
+        return APR_EGENERAL;
+    }
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on remove_balancer? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on remove_balancer? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return APR_EGENERAL;
+    }
+    if (balancer->id) {
         s->storage->ap_slotmem_free(s->slotmem, balancer->id, balancer);
-    else {
+    } else {
         /* XXX: for the moment January 2007 ap_slotmem_free only uses ident to remove */
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_balancer, &ou, 0, s->p);
-        if (rv == APR_SUCCESS)
+        if (rv == APR_SUCCESS) {
             rv = s->storage->ap_slotmem_free(s->slotmem, ou->id, balancer);
+        }
     }
     return rv;
 }
@@ -187,6 +243,18 @@ apr_status_t remove_balancer(mem_t *s, balancerinfo_t *balancer)
  */
 int get_ids_used_balancer(mem_t *s, int *ids)
 {
+    if(!ids) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_ids_used_balancer? ids: %p", ids);
+        return -1;
+    }
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_ids_used_balancer? s: %p", s);
+        return -1;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_ids_used_balancer? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return -1;
+    }
     return (s->storage->ap_slotmem_get_used(s->slotmem, ids));
 }
 
@@ -197,6 +265,16 @@ int get_ids_used_balancer(mem_t *s, int *ids)
  */
 int get_max_size_balancer(mem_t *s)
 {
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_max_size_balancer? s: %p", s);
+        return -1;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted balancer slotmem shared memory file on get_max_size_balancer? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return 0;
+    }
+    /*Why return 0 - see get_version_node in node.c*/
+
     return (s->storage->ap_slotmem_get_max_size(s->slotmem));
 }
 

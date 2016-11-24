@@ -39,6 +39,9 @@
 #include "apr_pools.h"
 #include "apr_time.h"
 
+#include "httpd.h"
+#include "http_log.h"
+
 #include "slotmem.h"
 #include "host.h"
 
@@ -54,10 +57,14 @@ static mem_t * create_attach_mem_host(char *string, int *num, int type, apr_pool
         return NULL;
     }
     ptr->storage =  storage;
+    if(!ptr->storage) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Host ptr->storage failure? ptr->storage: %p", ptr->storage);
+        return NULL;
+    }
     storename = apr_pstrcat(p, string, HOSTEXE, NULL); 
-    if (type)
+    if (type) {
         rv = ptr->storage->ap_slotmem_create(&ptr->slotmem, storename, sizeof(hostinfo_t), *num, type, p);
-    else {
+    } else {
         apr_size_t size = sizeof(hostinfo_t);
         rv = ptr->storage->ap_slotmem_attach(&ptr->slotmem, storename, &size, num, p);
     }
@@ -95,6 +102,16 @@ apr_status_t insert_update_host(mem_t *s, hostinfo_t *host)
     int ident;
 
     host->id = 0;
+
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem || !s->p) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s->storage: %p, s->slotmem: %p, s->p: %p", s->storage, s->slotmem, s->p);
+        return APR_EGENERAL;
+    }
+
     s->storage->ap_slotmem_lock(s->slotmem);
     rv = s->storage->ap_slotmem_do(s->slotmem, insert_update, &host, 1, s->p);
     if (host->id != 0 && rv == APR_SUCCESS) {
@@ -137,6 +154,15 @@ hostinfo_t * read_host(mem_t *s, hostinfo_t *host)
     apr_status_t rv;
     hostinfo_t *ou = host;
 
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s: %p", s);
+        return NULL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return NULL;
+    }
+
     if (host->id)
         rv = s->storage->ap_slotmem_mem(s->slotmem, host->id, (void **) &ou);
     else {
@@ -155,7 +181,19 @@ hostinfo_t * read_host(mem_t *s, hostinfo_t *host)
  */
 apr_status_t get_host(mem_t *s, hostinfo_t **host, int ids)
 {
-  return(s->storage->ap_slotmem_mem(s->slotmem, ids, (void **) host));
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!host) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? host: %p", host);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return APR_EGENERAL;
+    }
+    return(s->storage->ap_slotmem_mem(s->slotmem, ids, (void **) host));
 }
 
 /**
@@ -168,9 +206,21 @@ apr_status_t remove_host(mem_t *s, hostinfo_t *host)
 {
     apr_status_t rv;
     hostinfo_t *ou = host;
-    if (host->id)
+    if(!ou) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? ou: %p", ou);
+        return APR_EGENERAL;
+    }
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return APR_EGENERAL;
+    }
+    if (host->id) {
         s->storage->ap_slotmem_free(s->slotmem, host->id, host);
-    else {
+    } else {
         /* XXX: for the moment January 2007 ap_slotmem_free only uses ident to remove */
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_host, &ou, 0, s->p);
         if (rv == APR_SUCCESS)
@@ -187,6 +237,18 @@ apr_status_t remove_host(mem_t *s, hostinfo_t *host)
  */
 int get_ids_used_host(mem_t *s, int *ids)
 {
+    if(!ids) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? ids: %p", ids);
+        return -1;
+    }
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s: %p", s);
+        return -1;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return -1;
+    }
     return (s->storage->ap_slotmem_get_used(s->slotmem, ids));
 }
 
@@ -197,6 +259,16 @@ int get_ids_used_host(mem_t *s, int *ids)
  */
 int get_max_size_host(mem_t *s)
 {
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s: %p", s);
+        return -1;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return 0;
+    }
+    /*Why return 0 - see get_version_node in node.c*/
+
     return (s->storage->ap_slotmem_get_max_size(s->slotmem));
 }
 

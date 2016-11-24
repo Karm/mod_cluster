@@ -1781,7 +1781,7 @@ static char *cluster_get_sessionid(request_rec *r, const char *stickyval, char *
  */
 static int hassession_byname(request_rec *r, int nodeid, const char *route)
 {
-    proxy_balancer *balancer;
+    proxy_balancer *balancer = NULL;
     char *sessionid;
     char *uri;
     char *sticky_used;

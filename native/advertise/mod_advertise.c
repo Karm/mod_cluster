@@ -651,7 +651,7 @@ static int post_config_hook(apr_pool_t *pconf, apr_pool_t *plog,
             } else {
                 port = ma_server_rec->port;
              }
-            ptr = apr_psprintf(pproc, "%s:%lu", ma_server_rec->server_hostname, port);
+            ptr = apr_psprintf(pproc, "%s:%d", ma_server_rec->server_hostname, port);
         }
         rv = apr_parse_addr_port(&mconf->ma_advertise_srvs,
                                  &mconf->ma_advertise_srvi,
@@ -724,7 +724,7 @@ static void advertise_info(request_rec *r)
         }
         if (mconf->ma_advertise_server != NULL) {
             ap_rprintf(r, " Advertising on Group %s Port %d ", mconf->ma_advertise_adrs, mconf->ma_advertise_port);
-            ap_rprintf(r, "for %s://%s:%d every %d seconds<br/>",
+            ap_rprintf(r, "for %s://%s:%d every %li seconds<br/>",
                        mconf->ma_advertise_srvm, mconf->ma_advertise_srvs,
                        mconf-> ma_advertise_srvp,
                        apr_time_sec(mconf->ma_advertise_freq)

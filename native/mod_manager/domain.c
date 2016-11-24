@@ -39,6 +39,9 @@
 #include "apr_pools.h"
 #include "apr_time.h"
 
+#include "httpd.h"
+#include "http_log.h"
+
 #include "slotmem.h"
 #include "domain.h"
 
@@ -54,6 +57,11 @@ static mem_t * create_attach_mem_domain(char *string, int *num, int type, apr_po
         return NULL;
     }
     ptr->storage =  storage;
+    if(!ptr->storage) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Domain ptr->storage failure? ptr->storage: %p", ptr->storage);
+        return NULL;
+    }
+
     storename = apr_pstrcat(p, string, DOMAINEXE, NULL); 
     if (type)
         rv = ptr->storage->ap_slotmem_create(&ptr->slotmem, storename, sizeof(domaininfo_t), *num, type, p);
@@ -94,7 +102,22 @@ apr_status_t insert_update_domain(mem_t *s, domaininfo_t *domain)
     domaininfo_t *ou;
     int ident;
 
+    if(!domain) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", domain);
+        return APR_EGENERAL;
+    }
+
     domain->id = 0;
+
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem || !s->p) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s->storage: %p, s->slotmem: %p, s->p: %p", s->storage, s->slotmem, s->p);
+        return APR_EGENERAL;
+    }
+
     s->storage->ap_slotmem_lock(s->slotmem);
     rv = s->storage->ap_slotmem_do(s->slotmem, insert_update, &domain, 1, s->p);
     if (domain->id != 0 && rv == APR_SUCCESS) {
@@ -135,11 +158,26 @@ static apr_status_t loc_read_domain(void* mem, void **data, int id, apr_pool_t *
 domaininfo_t * read_domain(mem_t *s, domaininfo_t *domain)
 {
     apr_status_t rv;
+
+    if(!domain) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? domain: %p", domain);
+        return NULL;
+    }
+
     domaininfo_t *ou = domain;
 
-    if (domain->id)
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
+        return NULL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return NULL;
+    }
+
+    if (domain->id) {
         rv = s->storage->ap_slotmem_mem(s->slotmem, domain->id, (void **) &ou);
-    else {
+    } else {
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_domain, &ou, 0, s->p);
     }
     if (rv == APR_SUCCESS)
@@ -155,7 +193,19 @@ domaininfo_t * read_domain(mem_t *s, domaininfo_t *domain)
  */
 apr_status_t get_domain(mem_t *s, domaininfo_t **domain, int ids)
 {
-  return(s->storage->ap_slotmem_mem(s->slotmem, ids, (void **) domain));
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!domain) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? domain: %p", domain);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return APR_EGENERAL;
+    }
+    return(s->storage->ap_slotmem_mem(s->slotmem, ids, (void **) domain));
 }
 
 /**
@@ -168,13 +218,26 @@ apr_status_t remove_domain(mem_t *s, domaininfo_t *domain)
 {
     apr_status_t rv;
     domaininfo_t *ou = domain;
-    if (domain->id)
+    if(!ou) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? ou: %p", ou);
+        return APR_EGENERAL;
+    }
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return APR_EGENERAL;
+    }
+    if (domain->id) {
         s->storage->ap_slotmem_free(s->slotmem, domain->id, domain);
-    else {
+    } else {
         /* XXX: for the moment January 2007 ap_slotmem_free only uses ident to remove */
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_domain, &ou, 0, s->p);
-        if (rv == APR_SUCCESS)
+        if (rv == APR_SUCCESS) {
             rv = s->storage->ap_slotmem_free(s->slotmem, ou->id, domain);
+        }
     }
     return rv;
 }
@@ -190,7 +253,14 @@ apr_status_t find_domain(mem_t *s, domaininfo_t **domain, const char *route, con
 {
     domaininfo_t ou;
     apr_status_t rv;
-
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
+        return APR_EGENERAL;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return APR_EGENERAL;
+    }
     strncpy(ou.JVMRoute, route, sizeof(ou.JVMRoute));
     ou.JVMRoute[sizeof(ou.JVMRoute) - 1] = '\0';
     strncpy(ou.balancer, balancer, sizeof(ou.balancer));
@@ -209,6 +279,18 @@ apr_status_t find_domain(mem_t *s, domaininfo_t **domain, const char *route, con
  */
 int get_ids_used_domain(mem_t *s, int *ids)
 {
+    if(!ids) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? ids: %p", ids);
+        return -1;
+    }
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
+        return -1;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return -1;
+    }
     return (s->storage->ap_slotmem_get_used(s->slotmem, ids));
 }
 
@@ -219,6 +301,15 @@ int get_ids_used_domain(mem_t *s, int *ids)
  */
 int get_max_size_domain(mem_t *s)
 {
+    if(!s) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
+        return -1;
+    }
+    if(!s->storage || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s->storage: %p, s->slotmem: %p",s->storage, s->slotmem);
+        return 0;
+    }
+    /*Why return 0 - see get_version_node in node.c*/
     return (s->storage->ap_slotmem_get_max_size(s->slotmem));
 }
 
