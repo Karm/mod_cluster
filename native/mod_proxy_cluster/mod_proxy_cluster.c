@@ -1089,18 +1089,27 @@ static void update_workers_node(proxy_server_conf *conf, apr_pool_t *pool, serve
         return;
     }
     id = apr_pcalloc(pool, sizeof(int) * size);
+    if(!id) {
+        return;
+    }
     size = node_storage->get_ids_used_node(id);
 
     /* XXX: How to skip the balancer that aren't controled by mod_manager */
 
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, server,
-             "update_workers_node starting");
+    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, server, "update_workers_node starting");
 
     /* Only process the nodes that have been updated since our last update */
     for (i=0; i<size; i++) {
         nodeinfo_t *ou;
-        if (node_storage->read_node(id[i], &ou) != APR_SUCCESS)
+        if (!id[i]) {
             continue;
+        }
+        if (node_storage->read_node(id[i], &ou) != APR_SUCCESS) {
+            continue;
+        }
+        if (!ou) {
+            continue;
+        }
         add_balancers_workers(ou, pool);
     } 
 
@@ -1493,14 +1502,21 @@ static void update_workers_lbstatus(proxy_server_conf *conf, apr_pool_t *pool, s
 
     /* read the ident of the nodes */
     size = node_storage->get_max_size_node();
-    if (size == 0)
+    if (size == 0) {
         return;
+    }
     id = apr_pcalloc(pool, sizeof(int) * size);
+    if (!id) {
+        return;
+    }
     size = node_storage->get_ids_used_node(id);
 
     /* update lbstatus if needed */
     for (i=0; i<size; i++) {
         nodeinfo_t *ou;
+        if (!id[i]) {
+            continue;
+        }
         if (node_storage->read_node(id[i], &ou) != APR_SUCCESS)
             continue;
         if (ou->mess.remove)

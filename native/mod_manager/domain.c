@@ -193,6 +193,10 @@ domaininfo_t * read_domain(mem_t *s, domaininfo_t *domain)
  */
 apr_status_t get_domain(mem_t *s, domaininfo_t **domain, int ids)
 {
+    if(!ids) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? ids: %p", &ids);
+        return APR_EGENERAL;
+    }
     if(!s) {
         ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? s: %p", s);
         return APR_EGENERAL;
@@ -216,7 +220,7 @@ apr_status_t get_domain(mem_t *s, domaininfo_t **domain, int ids)
  */
 apr_status_t remove_domain(mem_t *s, domaininfo_t *domain)
 {
-    apr_status_t rv;
+    apr_status_t rv = APR_EGENERAL;
     domaininfo_t *ou = domain;
     if(!ou) {
         ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted domain slotmem shared memory file? ou: %p", ou);
@@ -231,7 +235,7 @@ apr_status_t remove_domain(mem_t *s, domaininfo_t *domain)
         return APR_EGENERAL;
     }
     if (domain->id) {
-        s->storage->ap_slotmem_free(s->slotmem, domain->id, domain);
+        rv = s->storage->ap_slotmem_free(s->slotmem, domain->id, domain);
     } else {
         /* XXX: for the moment January 2007 ap_slotmem_free only uses ident to remove */
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_domain, &ou, 0, s->p);

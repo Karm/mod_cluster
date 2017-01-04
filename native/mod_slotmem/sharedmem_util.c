@@ -38,6 +38,7 @@
 #include "slotmem.h"
 
 #include "httpd.h"
+#include "http_log.h"
 #ifdef AP_NEED_SET_MUTEX_PERMS
 #include "unixd.h"
 #endif
@@ -557,6 +558,19 @@ static int ap_slotmem_get_used(ap_slotmem_t *score, int *ids)
     int i, ret = 0;
     int *ident;
 
+    if(!score) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted ap_slotmem_get_used slotmem shared memory file? score: %p", score);
+        return APR_EGENERAL;
+    }
+    if(!score->ident) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted ap_slotmem_get_used slotmem shared memory file? score->ident: %p", score->ident);
+        return APR_EGENERAL;
+    }
+    if(!score->num) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted ap_slotmem_get_used slotmem shared memory file? score->num: %p", &score->num);
+        return APR_EGENERAL;
+    }
+
     ident = score->ident;
     for (i=0; i<score->num+1; i++) {
         if (ident[i] == 0) {
@@ -569,14 +583,16 @@ static int ap_slotmem_get_used(ap_slotmem_t *score, int *ids)
 }
 static int ap_slotmem_get_max_size(ap_slotmem_t *score)
 {
-    if (score == NULL)
+    if (!score || !score->num) {
         return 0;
+    }
     return score->num;
 }
 static unsigned int ap_slotmem_get_version(ap_slotmem_t *score)
 {
-    if (score == NULL)
+    if (!score || !score->num || !score->version) {
         return 0;
+    }
     return *score->version;
 }
 static const slotmem_storage_method storage = {

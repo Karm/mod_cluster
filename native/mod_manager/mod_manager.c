@@ -295,11 +295,19 @@ static const struct node_storage_method node_storage =
  */
 static apr_status_t loc_read_context(int ids, contextinfo_t **context)
 {
-    return (get_context(contextstatsmem, context, ids));
+    if (contextstatsmem && context && ids) {
+        return (get_context(contextstatsmem, context, ids));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static int loc_get_ids_used_context(int *ids)
 {
-    return(get_ids_used_context(contextstatsmem, ids)); 
+    if (ids && contextstatsmem) {
+        return(get_ids_used_context(contextstatsmem, ids));
+    } else {
+        return 0;
+    }
 }
 static const struct context_storage_method context_storage =
 {
@@ -313,11 +321,19 @@ static const struct context_storage_method context_storage =
  */
 static apr_status_t loc_read_host(int ids, hostinfo_t **host)
 {
-    return (get_host(hoststatsmem, host, ids));
+    if (hoststatsmem && host && ids) {
+        return (get_host(hoststatsmem, host, ids));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static int loc_get_ids_used_host(int *ids)
 {
-    return(get_ids_used_host(hoststatsmem, ids)); 
+    if (hoststatsmem && ids) {
+        return(get_ids_used_host(hoststatsmem, ids));
+    } else {
+        return 0;
+    }
 }
 static const struct host_storage_method host_storage =
 {
@@ -331,18 +347,27 @@ static const struct host_storage_method host_storage =
  */
 static apr_status_t loc_read_balancer(int ids, balancerinfo_t **balancer)
 {
-    return (get_balancer(balancerstatsmem, balancer, ids));
+    if (balancerstatsmem && balancer && ids) {
+        return (get_balancer(balancerstatsmem, balancer, ids));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static int loc_get_ids_used_balancer(int *ids)
 {
-    return(get_ids_used_balancer(balancerstatsmem, ids)); 
+    if (balancerstatsmem && ids) {
+        return(get_ids_used_balancer(balancerstatsmem, ids));
+    } else {
+        return 0;
+    }
 }
 static int loc_get_max_size_balancer()
 {
-    if (balancerstatsmem)
+    if (balancerstatsmem) {
         return(get_max_size_balancer(balancerstatsmem));
-    else
+    } else {
         return 0;
+    }
 }
 static const struct balancer_storage_method balancer_storage =
 {
@@ -355,26 +380,43 @@ static const struct balancer_storage_method balancer_storage =
  */
 static apr_status_t loc_read_sessionid(int ids, sessionidinfo_t **sessionid)
 {
-    return (get_sessionid(sessionidstatsmem, sessionid, ids));
+    if (sessionidstatsmem && sessionid && ids) {
+        return (get_sessionid(sessionidstatsmem, sessionid, ids));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static int loc_get_ids_used_sessionid(int *ids)
 {
-    return(get_ids_used_sessionid(sessionidstatsmem, ids)); 
+    if (sessionidstatsmem && ids) {
+        return(get_ids_used_sessionid(sessionidstatsmem, ids));
+    } else {
+        return 0;
+    }
 }
 static int loc_get_max_size_sessionid()
 {
-    if (sessionidstatsmem)
+    if (sessionidstatsmem) {
         return(get_max_size_sessionid(sessionidstatsmem));
-    else
+    } else {
         return 0;
+    }
 }
 static apr_status_t loc_remove_sessionid(sessionidinfo_t *sessionid)
 {
-    return (remove_sessionid(sessionidstatsmem, sessionid));
+    if (sessionidstatsmem && sessionid) {
+        return (remove_sessionid(sessionidstatsmem, sessionid));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static apr_status_t loc_insert_update_sessionid(sessionidinfo_t *sessionid)
 {
-    return (insert_update_sessionid(sessionidstatsmem, sessionid));
+    if (sessionidstatsmem && sessionid) {
+        return (insert_update_sessionid(sessionidstatsmem, sessionid));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static const struct  sessionid_storage_method sessionid_storage =
 {
@@ -390,30 +432,51 @@ static const struct  sessionid_storage_method sessionid_storage =
  */
 static apr_status_t loc_read_domain(int ids, domaininfo_t **domain)
 {
-    return (get_domain(domainstatsmem, domain, ids));
+    if (domainstatsmem && domain && ids) {
+        return (get_domain(domainstatsmem, domain, ids));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static int loc_get_ids_used_domain(int *ids)
 {
-    return(get_ids_used_domain(domainstatsmem, ids)); 
+    if (domainstatsmem && ids) {
+        return(get_ids_used_domain(domainstatsmem, ids));
+    } else {
+        return 0;
+    }
 }
 static int loc_get_max_size_domain()
 {
-    if (domainstatsmem)
+    if (domainstatsmem) {
         return(get_max_size_domain(domainstatsmem));
-    else
+    } else {
         return 0;
+    }
 }
 static apr_status_t loc_remove_domain(domaininfo_t *domain)
 {
-    return (remove_domain(domainstatsmem, domain));
+    if (domainstatsmem && domain) {
+        return (remove_domain(domainstatsmem, domain));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static apr_status_t loc_insert_update_domain(domaininfo_t *domain)
 {
-    return (insert_update_domain(domainstatsmem, domain));
+    if (domainstatsmem && domain) {
+        return (insert_update_domain(domainstatsmem, domain));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static apr_status_t loc_find_domain(domaininfo_t **domain, const char *route, const char *balancer)
 {
-    return (find_domain(domainstatsmem, domain, route, balancer));
+    if (domainstatsmem && domain && route && balancer) {
+        return (find_domain(domainstatsmem, domain, route, balancer));
+    } else {
+        return APR_EGENERAL;
+    }
 }
 static const struct  domain_storage_method domain_storage =
 {

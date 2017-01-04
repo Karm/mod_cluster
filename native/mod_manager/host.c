@@ -181,6 +181,10 @@ hostinfo_t * read_host(mem_t *s, hostinfo_t *host)
  */
 apr_status_t get_host(mem_t *s, hostinfo_t **host, int ids)
 {
+    if(!ids) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? ids: %p", &ids);
+        return APR_EGENERAL;
+    }
     if(!s) {
         ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? s: %p", s);
         return APR_EGENERAL;
@@ -204,7 +208,7 @@ apr_status_t get_host(mem_t *s, hostinfo_t **host, int ids)
  */
 apr_status_t remove_host(mem_t *s, hostinfo_t *host)
 {
-    apr_status_t rv;
+    apr_status_t rv = APR_EGENERAL;
     hostinfo_t *ou = host;
     if(!ou) {
         ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted host slotmem shared memory file? ou: %p", ou);
@@ -219,7 +223,7 @@ apr_status_t remove_host(mem_t *s, hostinfo_t *host)
         return APR_EGENERAL;
     }
     if (host->id) {
-        s->storage->ap_slotmem_free(s->slotmem, host->id, host);
+        rv = s->storage->ap_slotmem_free(s->slotmem, host->id, host);
     } else {
         /* XXX: for the moment January 2007 ap_slotmem_free only uses ident to remove */
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_host, &ou, 0, s->p);

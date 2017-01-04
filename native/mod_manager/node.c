@@ -244,6 +244,10 @@ nodeinfo_t * read_node(mem_t *s, nodeinfo_t *node)
  */
 apr_status_t get_node(mem_t *s, nodeinfo_t **node, int ids)
 {
+    if(!ids) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file? ids: %p", &ids);
+        return APR_EGENERAL;
+    }
     if(!s) {
         ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file? s: %p", s);
         return APR_EGENERAL;

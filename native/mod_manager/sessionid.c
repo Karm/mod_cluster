@@ -39,6 +39,9 @@
 #include "apr_pools.h"
 #include "apr_time.h"
 
+#include "httpd.h"
+#include "http_log.h"
+
 #include "slotmem.h"
 #include "sessionid.h"
 
@@ -79,6 +82,12 @@ static apr_status_t insert_update(void* mem, void **data, int id, apr_pool_t *po
 {
     sessionidinfo_t *in = (sessionidinfo_t *)*data;
     sessionidinfo_t *ou = (sessionidinfo_t *)mem;
+
+    if(!mem || !data || !id || !pool || !in || !ou || !in->sessionid || !ou->sessionid) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file insert_update sessionid?");
+        return APR_EGENERAL;
+    }
+
     if (strcmp(in->sessionid, ou->sessionid) == 0) {
         memcpy(ou, in, sizeof(sessionidinfo_t));
         ou->id = id;
@@ -93,6 +102,11 @@ apr_status_t insert_update_sessionid(mem_t *s, sessionidinfo_t *sessionid)
     apr_status_t rv;
     sessionidinfo_t *ou;
     int ident;
+
+    if(!s || !sessionid || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file insert_update_sessionid sessionid?");
+        return APR_EGENERAL;
+    }
 
     sessionid->id = 0;
     s->storage->ap_slotmem_lock(s->slotmem);
@@ -126,6 +140,11 @@ static apr_status_t loc_read_sessionid(void* mem, void **data, int id, apr_pool_
     sessionidinfo_t *in = (sessionidinfo_t *)*data;
     sessionidinfo_t *ou = (sessionidinfo_t *)mem;
 
+    if(!mem || !data || !id || !pool || !in || !ou || !in->sessionid || !ou->sessionid) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file loc_read_sessionid sessionid?");
+        return APR_EGENERAL;
+    }
+
     if (strcmp(in->sessionid, ou->sessionid) == 0) {
         *data = ou;
         return APR_SUCCESS;
@@ -137,13 +156,19 @@ sessionidinfo_t * read_sessionid(mem_t *s, sessionidinfo_t *sessionid)
     apr_status_t rv;
     sessionidinfo_t *ou = sessionid;
 
+    if(!s || !s->slotmem || !ou) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file read_sessionid sessionid?");
+        return NULL;
+    }
+
     if (sessionid->id)
         rv = s->storage->ap_slotmem_mem(s->slotmem, sessionid->id, (void **) &ou);
     else {
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_sessionid, &ou, 0, s->p);
     }
-    if (rv == APR_SUCCESS)
+    if (rv == APR_SUCCESS) {
         return ou;
+    }
     return NULL;
 }
 /**
@@ -155,6 +180,10 @@ sessionidinfo_t * read_sessionid(mem_t *s, sessionidinfo_t *sessionid)
  */
 apr_status_t get_sessionid(mem_t *s, sessionidinfo_t **sessionid, int ids)
 {
+  if(!s || !s->slotmem || !sessionid || !ids) {
+      ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file get_sessionid sessionid?");
+      return APR_EGENERAL;
+  }
   return(s->storage->ap_slotmem_mem(s->slotmem, ids, (void **) sessionid));
 }
 
@@ -166,15 +195,22 @@ apr_status_t get_sessionid(mem_t *s, sessionidinfo_t **sessionid, int ids)
  */
 apr_status_t remove_sessionid(mem_t *s, sessionidinfo_t *sessionid)
 {
-    apr_status_t rv;
+    apr_status_t rv = APR_EGENERAL;
     sessionidinfo_t *ou = sessionid;
-    if (sessionid->id)
-        s->storage->ap_slotmem_free(s->slotmem, sessionid->id, sessionid);
-    else {
+
+    if(!s || !s->slotmem || !ou || !sessionid) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file remove_sessionid sessionid?");
+        return APR_EGENERAL;
+    }
+
+    if (sessionid->id) {
+        rv = s->storage->ap_slotmem_free(s->slotmem, sessionid->id, sessionid);
+    } else {
         /* XXX: for the moment January 2007 ap_slotmem_free only uses ident to remove */
         rv = s->storage->ap_slotmem_do(s->slotmem, loc_read_sessionid, &ou, 0, s->p);
-        if (rv == APR_SUCCESS)
+        if (rv == APR_SUCCESS) {
             rv = s->storage->ap_slotmem_free(s->slotmem, ou->id, sessionid);
+        }
     }
     return rv;
 }
@@ -187,6 +223,10 @@ apr_status_t remove_sessionid(mem_t *s, sessionidinfo_t *sessionid)
  */
 int get_ids_used_sessionid(mem_t *s, int *ids)
 {
+    if(!s || !s->slotmem || !ids) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file get_ids_used_sessionid sessionid?");
+        return -1;
+    }
     return (s->storage->ap_slotmem_get_used(s->slotmem, ids));
 }
 
@@ -197,6 +237,10 @@ int get_ids_used_sessionid(mem_t *s, int *ids)
  */
 int get_max_size_sessionid(mem_t *s)
 {
+    if(!s || !s->slotmem) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file get_max_size_sessionid sessionid?");
+        return -1;
+    }
     return (s->storage->ap_slotmem_get_max_size(s->slotmem));
 }
 
@@ -209,6 +253,10 @@ int get_max_size_sessionid(mem_t *s)
  */
 mem_t * get_mem_sessionid(char *string, int *num, apr_pool_t *p, slotmem_storage_method *storage)
 {
+    if(!string || !num || !p || !storage) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file get_mem_sessionid sessionid?");
+        return NULL;
+    }
     return(create_attach_mem_sessionid(string, num, 0, p, storage));
 }
 /**
@@ -221,5 +269,9 @@ mem_t * get_mem_sessionid(char *string, int *num, apr_pool_t *p, slotmem_storage
  */
 mem_t * create_mem_sessionid(char *string, int *num, int persist, apr_pool_t *p, slotmem_storage_method *storage)
 {
+    if(!string || !num || !p || !storage) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, APR_EGENERAL, NULL, "Corrupted node slotmem shared memory file create_mem_sessionid sessionid?");
+        return NULL;
+    }
     return(create_attach_mem_sessionid(string, num, CREATE_SLOTMEM|persist, p, storage));
 }
